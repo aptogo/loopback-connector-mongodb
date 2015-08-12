@@ -1,5 +1,6 @@
 // This test written in mocha+should.js
 var should = require('./init.js');
+var GeoPoint = require('loopback-datasource-juggler/lib/geo').GeoPoint;
 
 var Superhero, User, Post, PostWithStringId, db;
 
@@ -75,6 +76,11 @@ describe('mongodb connector', function () {
       id: {type: Number, id: true},
       title: { type: String, length: 255, index: true },
       content: { type: String }
+    });
+
+    PostWithLocation = db.define('PostWithLocation', {
+      id: {type: Number, id: true},
+      location: { type: GeoPoint, index: true }
     });
 
     User.hasMany(Post);
@@ -1259,6 +1265,33 @@ describe('mongodb connector', function () {
         });
       });
     });
+
+  it('create should convert geopoint to geojson', function (done) {
+    var point = new GeoPoint({ lat: 1.243, lng: 20.40 });
+    PostWithLocation.create({ location: point }, function (err, post) {
+      should.not.exist(err);
+      point.lat.should.be.equal(post.location.lat);
+      point.lng.should.be.equal(post.location.lng);
+      done();
+    });
+  });
+
+  it('find should be able to query by location', function (done) {
+    db.autoupdate(function (err) {
+      PostWithLocation.find({
+        where: {
+          location: {
+            near: new GeoPoint({ lat: 1.25, lng: 20.20 })
+          }
+        }},
+        function (err, results) {
+          should.not.exist(err);
+          should.exist(results);
+
+          done();
+        });
+    });
+  });
 
   it('find should order by id if the order is not set for the query filter',
     function (done) {
